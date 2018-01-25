@@ -94,6 +94,7 @@ void sstp_usage_die(const char *prog, int code,
     printf("  --save-server-route      Add route to VPN server\n");
     printf("  --uuid                   The connection id\n");
     printf("  --tls-ext                Enable TLS hostname extension\n");
+    printf("  --host                   HTTP Host value\n");
     printf("  --version                Display the version information\n\n");
 
     /* Additional log usage */
@@ -215,6 +216,10 @@ static void sstp_parse_option(sstp_option_st *ctx, int argc, char **argv, int in
         ctx->enable |= SSTP_OPT_TLSEXT;
         break;
 
+    case 16:
+        ctx->host = strdup(optarg);
+        break;
+
     default:
         sstp_usage_die(argv[0], -1, "Unrecognized command line option");
         break;
@@ -284,7 +289,8 @@ int sstp_parse_argv(sstp_option_st *ctx, int argc, char **argv)
         { "user",           required_argument, NULL,  0  },
         { "uuid",           required_argument, NULL,  0  },
         { "save-server-route", no_argument,    NULL,  0  },
-        { "tls-ext",        no_argument,       NULL,  0  },
+        { "tls-ext",        no_argument,       NULL,  0  }, /* 15 */
+        { "host",           required_argument, NULL,  0  },
         { "version",        no_argument,       NULL, 'v' },
         { 0, 0, 0, 0 }
     };

@@ -53,6 +53,9 @@ typedef struct
     /*! The original server string */
     char *server;
 
+    /*! Content of the HTTP Host header */
+    char *host;
+
     /*! Unique connection parameter */
     char *ipparam;
 

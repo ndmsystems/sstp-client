@@ -219,13 +219,16 @@ static void sstp_client_http_done(sstp_client_st *client, int status)
     }
 
     /* Verify the server certificate */
-    status = sstp_verify_cert(client->stream, client->option.server, opts);
+    status = sstp_verify_cert(client->stream,
+        ((client->option.host != NULL) ?
+            client->option.host :
+            client->option.server), opts);
     if (SSTP_OKAY != status)
     {
         if (!(SSTP_OPT_CERTWARN & client->option.enable))
             sstp_die("Verification of server certificate failed", -2);
         
-        log_warn("Server certificated failed verification, ignoring");
+        log_warn("Server certificate verification failed, ignoring");
     }
 
     /* Now we need to start the state-machine */
