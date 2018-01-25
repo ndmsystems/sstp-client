@@ -343,6 +343,7 @@ void sstp_log_usage(void)
     printf("  --log-stderr             Output to stderr (negates --log-stdout)\n");
     printf("  --log-stdout             Output to stdout (negates --log-stderr)\n");
     printf("  --log-lineno             Include file/line information in messags\n");
+    printf("  --log-ident              Log ident\n");
     printf("  --log-filter <tok,tok>   Log messages matching a token\n\n");
 }
 
@@ -358,6 +359,7 @@ status_t sstp_log_init_argv(int *argc, char *argv[])
     int index = 0;
     int iter  = 0;
     char buff[64] = {};
+    char *ident = NULL;
     
     static option_st options [] = 
     {
@@ -368,6 +370,7 @@ status_t sstp_log_init_argv(int *argc, char *argv[])
         { "log-lineno", no_argument,       NULL, 104 },
         { "log-token",  required_argument, NULL, 105 },
         { "log-file",   optional_argument, NULL, 106 },
+        { "log-ident",  required_argument, NULL, 107 },
         { NULL,         no_argument,       NULL,   0 }
     };
     
@@ -457,6 +460,11 @@ status_t sstp_log_init_argv(int *argc, char *argv[])
             strncpy(ctx->file, argv[index+1], sizeof(ctx->file));
             break;
         }   
+        case 107:
+        {
+            ident = argv[index + 1];
+            break;
+        }    
         default:
             continue;
         }
@@ -507,7 +515,8 @@ status_t sstp_log_init_argv(int *argc, char *argv[])
     }
 
     /* Initialize the log-library as we normally would */
-    status = sstp_init_log(ptr1, opt, level);
+    status = sstp_init_log(
+        ((ident != NULL) ? ident : ptr1), opt, level);
     if (SSTP_OKAY != status)
     {
         goto done;
