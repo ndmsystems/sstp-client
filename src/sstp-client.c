@@ -309,7 +309,10 @@ static void sstp_client_proxy_done(sstp_client_st *client, int status)
         {
             log_info("TLS hostname extension is enabled");
             ret = sstp_stream_create(&client->stream, client->ev_base,
-                    client->ssl_ctx, client->host.name);
+                    client->ssl_ctx,
+                    ((client->option.host != NULL) ?
+                      client->option.host :
+                      client->host.name));
         }
         else
         {
@@ -422,7 +425,10 @@ static status_t sstp_client_connect(sstp_client_st *client,
     if (SSTP_OPT_TLSEXT & client->option.enable)
     {
         log_info("TLS hostname extension is enabled");
-        ret = sstp_stream_create(&client->stream, client->ev_base, client->ssl_ctx, client->host.name);
+        ret = sstp_stream_create(&client->stream, client->ev_base, client->ssl_ctx,
+                    ((client->option.host != NULL) ?
+                      client->option.host :
+                      client->host.name));
     }
     else
     {
