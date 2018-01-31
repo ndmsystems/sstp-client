@@ -995,7 +995,7 @@ static int sstp_dump_ppp(unsigned char *buf, size_t len, const char *file, int l
 }
 
 
-void sstp_pkt_dump(sstp_buff_st *buf, sstp_direction_t dir, const char *file, int line)
+void sstp_pkt_dump(sstp_buff_st *buf, sstp_direction_t dir, int ctrl_only, const char *file, int line)
 {
     sstp_pkt_st *pkt   = NULL;
     sstp_ctrl_st *ctrl = NULL;
@@ -1031,6 +1031,11 @@ void sstp_pkt_dump(sstp_buff_st *buf, sstp_direction_t dir, const char *file, in
 
     pkt    = (sstp_pkt_st*) sstp_buff_data(buf, index);
     index += (sizeof(sstp_pkt_st));
+
+    if (ctrl_only && !(SSTP_MSG_FLAG_CTRL & pkt->flags))
+    {
+        return;
+    }
 
     /* Packet Type / Length */
     sstp_log_msg(SSTP_LOG_TRACE, file, line, "%s SSTP %s PKT(%d) ", 

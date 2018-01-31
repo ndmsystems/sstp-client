@@ -25,6 +25,6 @@
 #ifndef __SSTP_DUMP_H__
 #define __SSTP_DUMP_H__
 
-void sstp_pkt_dump(sstp_buff_st *buf, sstp_direction_t dir, const char *file, int line);
+void sstp_pkt_dump(sstp_buff_st *buf, sstp_direction_t dir, int ctrl_only, const char *file, int line);
 
 #endif /* #ifdef __SSTP_DUMP_H__ */
