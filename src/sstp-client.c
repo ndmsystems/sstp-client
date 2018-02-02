@@ -262,10 +262,22 @@ static void sstp_client_connected(sstp_stream_st *stream, sstp_buff_st *buf,
     }
 
     /* Success! */
-    log_info("Connected to %s", client->host.name);
+    if (client->option.host == NULL)
+    {
+        log_info("Connected to %s", client->host.name);
+
+    } else
+    {
+        log_info("Connected to %s (host: %s)",
+            client->host.name,
+            client->option.host);
+    }
 
     /* Create the HTTP handshake context */
-    ret = sstp_http_create(&client->http, client->host.name, (sstp_http_done_fn) 
+    ret = sstp_http_create(&client->http, client->host.name,
+            ((client->option.host != NULL) ?
+                 client->option.host :
+                 client->host.name), (sstp_http_done_fn) 
             sstp_client_http_done, client, SSTP_MODE_CLIENT);
     if (SSTP_OKAY != ret)
     {
@@ -349,7 +361,10 @@ static void sstp_client_proxy_done(sstp_client_st *client, int status)
         sstp_http_free(client->http);
 
         /* Create the HTTP handshake context */
-        ret = sstp_http_create(&client->http, client->option.server, (sstp_http_done_fn) 
+        ret = sstp_http_create(&client->http, client->option.server,
+                ((client->option.host != NULL) ?
+                    client->option.host :
+                    client->host.name), (sstp_http_done_fn) 
                 sstp_client_http_done, client, SSTP_MODE_CLIENT);
         if (SSTP_OKAY != ret)
         {
@@ -392,6 +407,9 @@ static void sstp_client_proxy_connected(sstp_stream_st *stream, sstp_buff_st *bu
     if (!client->http) 
     {
         ret = sstp_http_create(&client->http, client->option.server,
+            ((client->option.host != NULL) ?
+                 client->option.host :
+                 client->host.name),
             (sstp_http_done_fn) sstp_client_proxy_done, client, SSTP_MODE_CLIENT);
         if (SSTP_OKAY != ret)
         {

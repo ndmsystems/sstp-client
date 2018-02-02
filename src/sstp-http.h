@@ -55,7 +55,7 @@ typedef void (*sstp_http_done_fn)(void *ctx, int result);
  * @brief Create a HTTP context
  */
 status_t sstp_http_create(sstp_http_st **http, const char *server,
-        sstp_http_done_fn done_cb, void *uarg, int mode);
+        const char *host, sstp_http_done_fn done_cb, void *uarg, int mode);
 
 
 /*!

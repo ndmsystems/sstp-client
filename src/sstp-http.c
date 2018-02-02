@@ -58,6 +58,9 @@ struct sstp_http
     /*! Server we are connecting to */
     const char *server;
 
+    /*! Value of Host: HTTP header */
+    const char *host;
+
     /*! The caller supplied argument */
     void *uarg;
 
@@ -117,7 +120,7 @@ static void sstp_http_recv_hello(sstp_http_st *http)
 #endif
 
 status_t sstp_http_create(sstp_http_st **http, const char *server, 
-    sstp_http_done_fn done_cb, void *uarg, int mode)
+    const char *host, sstp_http_done_fn done_cb, void *uarg, int mode)
 {
     int ret = 0;
 
@@ -132,6 +135,7 @@ status_t sstp_http_create(sstp_http_st **http, const char *server,
     (*http)->uarg    = uarg;
     (*http)->done_cb = done_cb;
     (*http)->server  = server;
+    (*http)->host    = host;
     (*http)->mode    = mode;
 
     /* Create the buffer */
@@ -289,7 +293,7 @@ static status_t sstp_http_send_hello(sstp_http_st *http,
     }
 
     /* Add the Host attribute */
-    ret = sstp_buff_print(http->buf, "Host: %s\r\n", http->server);
+    ret = sstp_buff_print(http->buf, "Host: %s\r\n", http->host);
     if (SSTP_OKAY != ret)
     {
         return ret;
