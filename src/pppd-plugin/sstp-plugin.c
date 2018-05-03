@@ -32,6 +32,8 @@
 #include <unistd.h>
 
 #include <pppd/pppd.h>
+#include <pppd/fsm.h>
+#include <pppd/ipcp.h>
 #include <sstp-api.h>
 
 #ifndef MPPE
@@ -43,6 +45,7 @@ extern int mppe_keys_set;
 #define SSTP_MAX_BUFLEN             255
 
 static int sstp_notify_sent = 0;
+static int sstp_pre_up_executed = 0;
 
 /*!
  * @brief PPP daemon requires this symbol to be exported
@@ -51,6 +54,7 @@ const char pppd_version [] = VERSION;
 
 /*! The socket we send sstp-client our MPPE keys */
 static char sstp_sock[SSTP_MAX_BUFLEN+1];
+static char *sstp_server = "0.0.0.0";
 
 /*! Set of options required for this module */
 static option_t sstp_option [] = 
@@ -58,9 +62,11 @@ static option_t sstp_option [] =
     { "sstp-sock", o_string, &sstp_sock, 
       "Set the address of the socket to connect back to sstp-client",
       OPT_PRIO | OPT_PRIV | OPT_STATIC, NULL, SSTP_MAX_BUFLEN
+    },
+    { "sstp-server", o_string, &sstp_server,
+      "SSTP server IP"
     }
 };
-
 
 /*!
  * @brief Exchange the MPPE keys with sstp-client
@@ -222,6 +228,42 @@ static void sstp_snoop_send(unsigned char *buf, int len)
             mppe_recv_key, sizeof(mppe_recv_key));
 }
 
+static void
+script_sstp(script)
+	char *script;
+{
+	char strspeed[32], strlocal[32], strremote[32], strsid[32];
+	char *argv[8];
+
+	slprintf(strspeed, sizeof(strspeed), "%d", baud_rate);
+	slprintf(strlocal, sizeof(strlocal), "%I", ipcp_gotoptions[0].ouraddr);
+	slprintf(strremote, sizeof(strremote), "%I", ipcp_hisoptions[0].hisaddr);
+
+	argv[0] = script;
+	argv[1] = ifname;
+	argv[2] = devnam;
+	argv[3] = strspeed;
+	argv[4] = strlocal;
+	argv[5] = strremote;
+	argv[6] = (ipparam && ipparam[0]) ? ipparam : "-";
+	argv[7] = NULL;
+
+	script_setenv("IPSERVER", sstp_server, 0);
+	run_program(script, argv, 0, NULL, NULL, 1);
+}
+
+static void sstp_phasechange(void *dummy, int arg)
+{
+    if (sstp_pre_up_executed)
+        return;
+
+    if (arg < PHASE_NETWORK)
+        return;
+
+    sstp_pre_up_executed++;
+
+    script_sstp(path_preup);
+}
 
 /*!
  * @brief PPP daemon requires this symbol to be exported for initialization
@@ -239,6 +281,9 @@ void plugin_init(void)
 
     /* Add ip-up notifier */
     add_notifier(&ip_up_notifier, sstp_ip_up, NULL);
+
+    /* Add phase change notifier */
+    add_notifier(&phasechange, sstp_phasechange, NULL);
 }
 
 
