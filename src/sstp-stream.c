@@ -420,7 +420,7 @@ status_t sstp_verify_cert(sstp_stream_st *ctx, const char *host, int opts)
                 result, sizeof(result));
         if (strcasecmp(host, result))
         {
-            log_info("The certificate did not match the host: %s", host);
+            log_info("The certificate (%s) did not match the host: %s", result, host);
             goto done;
         }
     }

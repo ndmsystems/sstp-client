@@ -245,7 +245,7 @@ static void sstp_client_http_done(sstp_client_st *client, int status)
         if (!(SSTP_OPT_CERTWARN & client->option.enable))
             sstp_die("Verification of server certificate failed", -2);
         
-        log_warn("Server certificated failed verification, ignoring");
+        log_warn("Server certificate verification failed, ignoring");
     }
 
     /* Now we need to start the state-machine */
@@ -279,7 +279,16 @@ static void sstp_client_connected(sstp_stream_st *stream, sstp_buff_st *buf,
     }
 
     /* Success! */
-    log_info("Connected to %s", client->host.name);
+    if (client->option.host == NULL)
+    {
+        log_info("Connected to %s", client->host.name);
+
+    } else
+    {
+        log_info("Connected to %s (host: %s)",
+            client->host.name,
+            client->option.host);
+    }
 
     /* Create the HTTP handshake context */
     ret = sstp_http_create(&client->http, client->host.name, (sstp_http_done_fn) 

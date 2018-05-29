@@ -24,6 +24,7 @@
 #include <config.h>
 #include <string.h>
 #include "sstp-private.h"
+#include "sstp-client.h"
 
 /*!
  * @par SSTP HTTP Handshake
@@ -58,6 +59,9 @@ struct sstp_http
     /*! Server we are connecting to */
     const char *server;
 
+    /*! Value of Host: HTTP header */
+    const char *host;
+
     /*! The caller supplied argument */
     void *uarg;
 
@@ -91,6 +95,7 @@ static void sstp_recv_proxy_complete(sstp_stream_st *client,
 status_t sstp_http_create(sstp_http_st **http, const char *server, 
     sstp_http_done_fn done_cb, void *uarg, int mode)
 {
+    sstp_option_st *opts = &((sstp_client_st *)uarg)->option;
     int ret = 0;
 
     /* Allocate the HTTP context */
@@ -104,6 +109,7 @@ status_t sstp_http_create(sstp_http_st **http, const char *server,
     (*http)->uarg    = uarg;
     (*http)->done_cb = done_cb;
     (*http)->server  = server;
+    (*http)->host    = opts->host ?: opts->server;
     (*http)->mode    = mode;
 
     /* Create the buffer */
@@ -261,7 +267,7 @@ static status_t sstp_http_send_hello(sstp_http_st *http,
     }
 
     /* Add the Host attribute */
-    ret = sstp_buff_print(http->buf, "Host: %s\r\n", http->server);
+    ret = sstp_buff_print(http->buf, "Host: %s\r\n", http->host);
     if (SSTP_OKAY != ret)
     {
         return ret;
