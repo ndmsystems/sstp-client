@@ -45,10 +45,127 @@
 #include <stdio.h>
 #include <sys/socket.h>
 #include <string.h>
+#include <strings.h>
 #include <unistd.h>
 #include <openssl/ssl.h>
 
 #include "sstp-private.h"
+
+/*
+ * Match a hostname against a wildcard pattern.
+ * E.g.
+ *  "foo.host.com" matches "*.host.com".
+ *
+ * We use the matching rule described in RFC6125, section 6.4.3.
+ * https://tools.ietf.org/html/rfc6125#section-6.4.3
+ *
+ * In addition: ignore trailing dots in the host names and wildcards, so that
+ * the names are used normalized. This is what the browsers do.
+ *
+ * Do not allow wildcard matching on IP numbers. There are apparently
+ * certificates being used with an IP address in the CN field, thus making no
+ * apparent distinction between a name and an IP. We need to detect the use of
+ * an IP address and not wildcard match on such names.
+ *
+ * NOTE: hostmatch() gets called with copied buffers so that it can modify the
+ * contents at will.
+ */
+
+static int strncasecompare(const char *s1, const char *s2, size_t n) {
+	return strncasecmp(s1, s2, n);
+}
+
+static int strcasecompare(const char *s1, const char *s2) {
+	return strcasecmp(s1, s2);
+}
+
+#define HOST_NOMATCH 0
+#define HOST_MATCH   1
+
+static int hostmatch(char *hostname, char *pattern)
+{
+  const char *pattern_label_end, *pattern_wildcard, *hostname_label_end;
+  int wildcard_enabled;
+  size_t prefixlen, suffixlen;
+  struct in_addr ignored;
+#ifdef ENABLE_IPV6
+  struct sockaddr_in6 si6;
+#endif
+
+  /* normalize pattern and hostname by stripping off trailing dots */
+  size_t len = strlen(hostname);
+  if(hostname[len-1]=='.')
+    hostname[len-1] = 0;
+  len = strlen(pattern);
+  if(pattern[len-1]=='.')
+    pattern[len-1] = 0;
+
+  pattern_wildcard = strchr(pattern, '*');
+  if(pattern_wildcard == NULL)
+    return strcasecompare(pattern, hostname) ?
+      HOST_MATCH : HOST_NOMATCH;
+
+  /* detect IP address as hostname and fail the match if so */
+  if(inet_pton(AF_INET, hostname, &ignored) > 0)
+    return HOST_NOMATCH;
+
+  /* We require at least 2 dots in pattern to avoid too wide wildcard
+     match. */
+  wildcard_enabled = 1;
+  pattern_label_end = strchr(pattern, '.');
+  if(pattern_label_end == NULL || strchr(pattern_label_end + 1, '.') == NULL ||
+     pattern_wildcard > pattern_label_end ||
+     strncasecompare(pattern, "xn--", 4)) {
+    wildcard_enabled = 0;
+  }
+  if(!wildcard_enabled)
+    return strcasecompare(pattern, hostname) ?
+      HOST_MATCH : HOST_NOMATCH;
+
+  hostname_label_end = strchr(hostname, '.');
+  if(hostname_label_end == NULL ||
+     !strcasecompare(pattern_label_end, hostname_label_end))
+    return HOST_NOMATCH;
+
+  /* The wildcard must match at least one character, so the left-most
+     label of the hostname is at least as large as the left-most label
+     of the pattern. */
+  if(hostname_label_end - hostname < pattern_label_end - pattern)
+    return HOST_NOMATCH;
+
+  prefixlen = pattern_wildcard - pattern;
+  suffixlen = pattern_label_end - (pattern_wildcard + 1);
+  return strncasecompare(pattern, hostname, prefixlen) &&
+    strncasecompare(pattern_wildcard + 1, hostname_label_end - suffixlen,
+                    suffixlen) ?
+    HOST_MATCH : HOST_NOMATCH;
+}
+
+static int cert_hostcheck(const char *m, const char *h)
+{
+  char *match_pattern = strdup(m);
+  char *hostname = strdup(h);
+  char *matchp;
+  char *hostp;
+  int res = 0;
+  if(!match_pattern || !*match_pattern ||
+      !hostname || !*hostname) /* sanity check */
+    ;
+  else {
+    matchp = strdup(match_pattern);
+    if(matchp) {
+      hostp = strdup(hostname);
+      if(hostp) {
+        if(hostmatch(hostp, matchp) == HOST_MATCH)
+          res = 1;
+        free(hostp);
+      }
+      free(matchp);
+    }
+  }
+
+  return res;
+}
 
 /*!
  * @brief A asynchronous send or recv channel object
@@ -418,7 +535,7 @@ status_t sstp_verify_cert(sstp_stream_st *ctx, const char *host, int opts)
         /* Get the common name of the certificate */
         X509_NAME_get_text_by_NID(name, NID_commonName, 
                 result, sizeof(result));
-        if (strcasecmp(host, result))
+        if (cert_hostcheck(result, host) != HOST_MATCH)
         {
             log_info("The certificate (%s) did not match the host: %s", result, host);
             goto done;
