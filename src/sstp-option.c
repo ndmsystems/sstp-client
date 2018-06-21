@@ -215,8 +215,12 @@ static void sstp_parse_option(sstp_option_st *ctx, int argc, char **argv, int in
         break;
 
     case 16:
-	sstp_print_version(argv[0]);
-	break;
+        sstp_print_version(argv[0]);
+        break;
+
+    case 17:
+        ctx->enable |= SSTP_OPT_ANON_DH;
+        break;
 
     default:
         sstp_usage_die(argv[0], -1, "Unrecognized command line option");
@@ -292,6 +296,7 @@ int sstp_parse_argv(sstp_option_st *ctx, int argc, char **argv)
         { "save-server-route", no_argument,    NULL,  0  },
         { "tls-ext",        no_argument,       NULL,  0  }, /* 15 */
         { "version",        no_argument,       NULL, 'v' },
+        { "anon-dh",        no_argument,       NULL,  0  },
         { 0, 0, 0, 0 }
     };
 

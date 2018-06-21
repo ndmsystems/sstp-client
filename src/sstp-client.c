@@ -55,6 +55,20 @@ static const char* const sstp_client_ssl_ciphers =
     ":AES128-SHA:AES256-SHA:DES-CBC3-SHA" \
     ":!aNULL:!eNULL:!EXPORT:!DES:!MD5:!PSK:!RC4:!DSS";
 
+static const char* const sstp_client_ssl_ciphers_anon_dh =
+    "ECDHE-ECDSA-CHACHA20-POLY1305:ECDHE-RSA-CHACHA20-POLY1305" \
+    ":ECDHE-ECDSA-AES128-GCM-SHA256:ECDHE-RSA-AES128-GCM-SHA256" \
+    ":ECDHE-ECDSA-AES256-GCM-SHA384:ECDHE-RSA-AES256-GCM-SHA384" \
+    ":DHE-RSA-AES128-GCM-SHA256:DHE-RSA-AES256-GCM-SHA384" \
+    ":ECDHE-ECDSA-AES128-SHA256:ECDHE-RSA-AES128-SHA256:ECDHE-ECDSA-AES128-SHA" \
+    ":ECDHE-RSA-AES256-SHA384:ECDHE-RSA-AES128-SHA:ECDHE-ECDSA-AES256-SHA384" \
+    ":ECDHE-ECDSA-AES256-SHA:ECDHE-RSA-AES256-SHA:DHE-RSA-AES128-SHA256" \
+    ":DHE-RSA-AES128-SHA:DHE-RSA-AES256-SHA256:DHE-RSA-AES256-SHA" \
+    ":ECDHE-ECDSA-DES-CBC3-SHA:ECDHE-RSA-DES-CBC3-SHA:EDH-RSA-DES-CBC3-SHA" \
+    ":AES128-GCM-SHA256:AES256-GCM-SHA384:AES128-SHA256:AES256-SHA256" \
+    ":AES128-SHA:AES256-SHA:DES-CBC3-SHA:AECDH:ADH" \
+    ":!EXPORT:!DES:!MD5:!PSK:!RC4:!DSS";
+
 /*! Global context for the sstp-client */
 static sstp_client_st client;
 
@@ -498,7 +512,7 @@ static status_t sstp_init_ssl(sstp_client_st *client, sstp_option_st *opt)
     SSL_load_error_strings();
 
     /* Create a new crypto context */
-    client->ssl_ctx = SSL_CTX_new(SSLv23_client_method());
+    client->ssl_ctx = SSL_CTX_new(TLS_client_method());
     if (client->ssl_ctx == NULL)
     {
         log_err("Could not get SSL crypto context");
@@ -539,7 +553,9 @@ static status_t sstp_init_ssl(sstp_client_st *client, sstp_option_st *opt)
 
     status = SSL_CTX_set_cipher_list(
         client->ssl_ctx,
-        sstp_client_ssl_ciphers);
+        (opt->enable & SSTP_OPT_ANON_DH) ?
+            sstp_client_ssl_ciphers_anon_dh :
+            sstp_client_ssl_ciphers);
     if (status != 1)
     {
         log_err("Could not set SSL ciphersuites");
@@ -561,6 +577,11 @@ static status_t sstp_init_ssl(sstp_client_st *client, sstp_option_st *opt)
 
     /* OBS: In case of longer certificate chains than 1 */
     SSL_CTX_set_verify_depth(client->ssl_ctx, 9);
+
+    if (opt->enable & SSTP_OPT_ANON_DH)
+    {
+        SSL_CTX_set_security_level(client->ssl_ctx, 0);
+    }
 
     /*! Success */
     retval = SSTP_OKAY;

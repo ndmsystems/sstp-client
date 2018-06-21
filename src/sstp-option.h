@@ -33,6 +33,7 @@
 #define SSTP_OPT_CERTWARN       0x0010
 #define SSTP_OPT_SAVEROUTE      0x0020
 #define SSTP_OPT_TLSEXT         0x0040
+#define SSTP_OPT_ANON_DH        0x0080
 
 
 /*!

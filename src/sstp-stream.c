@@ -48,6 +48,7 @@
 #include <strings.h>
 #include <unistd.h>
 #include <openssl/ssl.h>
+#include <openssl/err.h>
 
 #include "sstp-private.h"
 
@@ -475,7 +476,8 @@ status_t sstp_get_cert_hash(sstp_stream_st *ctx, int proto,
     if (!peer)
     {
         log_err("Failed to get peer certificate");
-        goto done;
+
+        goto anon_dh;
     }
 
     /* Get the digest */
@@ -485,7 +487,9 @@ status_t sstp_get_cert_hash(sstp_stream_st *ctx, int proto,
         log_err("Failed to get certificate hash");
         goto done;
     }
-    
+
+anon_dh:
+
     /* Success! */
     status = SSTP_OKAY;
 
@@ -585,7 +589,7 @@ status_t sstp_stream_recv_plain(sstp_stream_st *ctx, sstp_buff_st *buf,
             buf->max - buf->off, 0);
     if (ret <= 0)
     {
-        log_err("Unrecoverable socket error, %d", errno);
+        log_err("Unrecoverable socket error, %s", strerror(errno));
         goto done;
     }
 
@@ -605,6 +609,9 @@ status_t sstp_stream_recv(sstp_stream_st *ctx, sstp_buff_st *buf,
     status_t status = SSTP_FAIL;
     short event = 0;
     int ret = 0;
+    int r = 0;
+    long error = 0;
+    const char* error_str = NULL;
 
     /* Setup the timeout */
     if (timeout > 0)
@@ -618,7 +625,7 @@ status_t sstp_stream_recv(sstp_stream_st *ctx, sstp_buff_st *buf,
 
     /* Try to read from the SSL socket until it blocks */
     ret = SSL_read(ctx->ssl, buf->data + buf->off, buf->max - buf->off);
-    switch (SSL_get_error(ctx->ssl, ret))
+    switch (r = SSL_get_error(ctx->ssl, ret))
     {
     case SSL_ERROR_NONE:
         buf->off += ret;
@@ -638,7 +645,10 @@ status_t sstp_stream_recv(sstp_stream_st *ctx, sstp_buff_st *buf,
         goto done;
     
     default:
-        log_err("Unrecoverable SSL error %d", ret);
+        error = ERR_get_error();
+        error_str = ERR_error_string(error, NULL);
+
+        log_err("Unrecoverable SSL error: %d (%s)", r, error_str);
         goto done;
     }
 
@@ -654,6 +664,9 @@ status_t sstp_stream_recv_sstp(sstp_stream_st *ctx, sstp_buff_st *buf,
 {
     status_t status = SSTP_FAIL;
     int ret = 0;
+    int r = 0;
+    long error = 0;
+    const char* error_str = NULL;
 
     /* Activity Timer */
     ctx->last = time(NULL);
@@ -668,7 +681,7 @@ status_t sstp_stream_recv_sstp(sstp_stream_st *ctx, sstp_buff_st *buf,
         /* Try to read from the SSL socket */
         ret = SSL_read(ctx->ssl, buf->data + buf->off, 
                 buf->len - buf->off);
-        switch (SSL_get_error(ctx->ssl, ret))
+        switch (r = SSL_get_error(ctx->ssl, ret))
         {
         case SSL_ERROR_NONE:
             buf->off += ret;
@@ -687,7 +700,10 @@ status_t sstp_stream_recv_sstp(sstp_stream_st *ctx, sstp_buff_st *buf,
             goto done;
         
         default:
-            log_err("Unrecoverable SSL error");
+            error = ERR_get_error();
+            error_str = ERR_error_string(error, NULL);
+
+            log_err("Unrecoverable SSL error: %d (%s)", r, error_str);
             goto done;
         }
 
@@ -757,7 +773,7 @@ status_t sstp_stream_send_plain(sstp_stream_st *stream, sstp_buff_st *buf,
             buf->len - buf->off, 0);
     if (ret <= 0)
     {
-        log_err("Unrecoverable socket error, %d", errno);
+        log_err("Unrecoverable socket error, %s", strerror(errno));
         return SSTP_FAIL;
     }
 
@@ -781,6 +797,8 @@ status_t sstp_stream_send(sstp_stream_st *stream, sstp_buff_st *buf,
     sstp_complete_fn complete, void *arg, int timeout)
 {
     int ret = 0;
+    long error = 0;
+    const char* error_str = NULL;
 
     stream->last = time(NULL);
     stream->send_cb = (event_fn) sstp_send_cont;
@@ -823,7 +841,10 @@ status_t sstp_stream_send(sstp_stream_st *stream, sstp_buff_st *buf,
             return SSTP_INPROG;
 
         default:
-            log_err("Unrecoverable socket error, %d", err);
+            error = ERR_get_error();
+            error_str = ERR_error_string(error, NULL);
+
+            log_err("Unrecoverable SSL error: %d (%s)", err, error_str);
             return SSTP_FAIL;
         }
 
