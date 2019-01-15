@@ -42,6 +42,7 @@ typedef enum
     SSTP_API_MSG_AUTH    = 1,
     SSTP_API_MSG_ADDR    = 2,
     SSTP_API_MSG_ACK     = 3,
+    SSTP_API_MSG_IP_UP   = 4,
 
     /*
      * Add more event message types here
