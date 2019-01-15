@@ -88,6 +88,20 @@ static void sstp_client_event_cb(sstp_client_st *client, int ret)
     size_t   slen;
     size_t   rlen;
 
+    if (client->ip_up_recv)
+    {
+        log_info("Got ip-up, send Connected");
+
+        /* Tell the state machine to connect */
+        ret = sstp_state_accept(client->state);
+        if (SSTP_FAIL == ret)
+        {
+            sstp_die("Negotiation with server failed", -1);
+        }
+
+        return;
+    }
+
     /* Check the result of the event */
     if (SSTP_OKAY != ret)
     {
@@ -104,12 +118,7 @@ static void sstp_client_event_cb(sstp_client_st *client, int ret)
     /* Set the MPPE keys */
     sstp_state_mppe_keys(client->state, skey, slen, rkey, rlen);
 
-    /* Tell the state machine to connect */
-    ret = sstp_state_accept(client->state);
-    if (SSTP_FAIL == ret)
-    {
-        sstp_die("Negotiation with server failed", -1);
-    }
+    log_info("Got MPPE/HLAK keys");
 }
 
 
@@ -653,6 +662,8 @@ static status_t sstp_client_init(sstp_client_st *client, sstp_option_st *opts)
 {
     int retval = SSTP_FAIL;
     int status = 0;
+
+    client->ip_up_recv = 0;
 
     /* Initialize the event library */
     client->ev_base = event_base_new();

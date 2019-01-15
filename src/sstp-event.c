@@ -172,6 +172,33 @@ static int sstp_event_addr(sstp_event_st *ctx, int sock,
     return retval;
 }
 
+static int sstp_event_ip_up(sstp_event_st *ctx, int sock, 
+        sstp_api_msg_st *msg)
+{
+    unsigned char buff[255];
+    int ret    = SSTP_OKAY;
+    int retval = SSTP_FAIL;
+    sstp_client_st *client = (sstp_client_st*) ctx->arg;
+    
+    /* Prepare the ACK */
+    msg = sstp_api_msg_new(buff, SSTP_API_MSG_ACK);
+
+    client->ip_up_recv = 1;
+
+    /* Success */
+    ctx->event_cb(ctx->arg, SSTP_OKAY);
+
+    /* ACK the message */
+    ret = send(sock, msg, msg->msg_len + sizeof(*msg), 0);
+    if (ret <= 0 || ret != (msg->msg_len + sizeof(*msg)))
+    {
+        log_warn("Could not reply message back to pppd");
+    }
+
+    /* Success */
+    retval = SSTP_OKAY;
+    return retval;
+}
 
 static void sstp_event_accept(int fd, short event, sstp_event_st *ctx)
 {
@@ -219,6 +246,10 @@ static void sstp_event_accept(int fd, short event, sstp_event_st *ctx)
     case SSTP_API_MSG_ADDR:
         sstp_event_addr(ctx, sock, &msg);
         break;
+
+    /* Send SSTP connected for CMAC */
+    case SSTP_API_MSG_IP_UP:
+        sstp_event_ip_up(ctx, sock, &msg);
 
     default:
         break;

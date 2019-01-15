@@ -88,6 +88,10 @@ typedef struct
     /*! The event base */
     event_base_st *ev_base;
 
+    /*! ip_up received */
+
+    int ip_up_recv;
+
 } sstp_client_st;
 
 

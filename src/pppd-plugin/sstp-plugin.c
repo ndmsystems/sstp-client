@@ -45,6 +45,7 @@ extern int mppe_keys_set;
 #define SSTP_MAX_BUFLEN             255
 
 static int sstp_notify_sent = 0;
+static int sstp_ip_up_notify_sent = 0;
 static int sstp_pre_up_executed = 0;
 
 /*!
@@ -133,6 +134,58 @@ static void sstp_send_notify(unsigned char *skey, int slen,
 }
 
 
+static void sstp_send_notify_ip_up(void)
+{
+    struct sockaddr_un addr;
+    int ret  = (-1);
+    int sock = (-1);
+    int alen = (sizeof(addr));
+    uint8_t buf[SSTP_MAX_BUFLEN+1];
+    sstp_api_msg_st  *msg  = NULL;
+
+    /* Open the socket */
+    sock = socket(AF_UNIX, SOCK_STREAM, 0);
+    if (sock < 0)
+    {
+        fatal("Could not open socket to communicate with sstp-client");
+    }
+
+    /* Setup the address */
+    addr.sun_family = AF_UNIX;
+    strncpy(addr.sun_path, sstp_sock, sizeof(addr.sun_path));
+
+    /* Connect the socket */
+    ret = connect(sock, (struct sockaddr*) &addr, alen);
+    if (ret < 0)
+    {
+        fatal("Could not connect to sstp-client (%s), %s (%d)", sstp_sock,
+            strerror(errno), errno);
+    }
+
+    /* Create a new message */
+    msg = sstp_api_msg_new(buf, SSTP_API_MSG_IP_UP);
+
+    /* Send the structure */
+    ret = send(sock, msg, sstp_api_msg_len(msg), 0);
+    if (ret < 0)
+    {
+        fatal("Could not send data to sstp-client");
+    }
+    
+    /* Wait for the ACK to be received */
+    ret = recv(sock, msg, (sizeof(*msg)), 0);
+    if (ret < 0 || ret != (sizeof(*msg)))
+    {
+        fatal("Could not wait for ack from sstp-client");
+    }
+
+    /* We have communicated the keys */
+    sstp_ip_up_notify_sent = 1;
+
+    /* Close socket */
+    close(sock);
+}
+
 /*!
  * @brief Make sure we send notification, if we didn't snoop MSCHAPv2
  * 
@@ -146,7 +199,14 @@ static void sstp_send_notify(unsigned char *skey, int slen,
 static void sstp_ip_up(void *arg, int dummy)
 {
     if (sstp_notify_sent)
+    {
+        if (!sstp_ip_up_notify_sent)
+        {
+            sstp_send_notify_ip_up();
+        }
+
         return;
+    }
 
     /* Auth-Type is not MSCHAPv2, reset the keys and send blank keys */
     if (!mppe_keys_set)
@@ -158,8 +218,14 @@ static void sstp_ip_up(void *arg, int dummy)
     /* Send the MPPE keys to the sstpc client */
     sstp_send_notify(mppe_send_key, sizeof(mppe_send_key),
             mppe_recv_key, sizeof(mppe_recv_key));
-}
 
+    if (sstp_ip_up_notify_sent)
+    {
+        return;
+    }
+
+    sstp_send_notify_ip_up();
+}
 
 /*!
  * @brief Snoop the Authentication complete packet, steal MPPE keys
@@ -263,6 +329,9 @@ static void sstp_phasechange(void *dummy, int arg)
     sstp_pre_up_executed++;
 
     script_sstp(path_preup);
+
+    /* auth-up notifier */
+    sstp_ip_up(NULL, 0);
 }
 
 /*!
