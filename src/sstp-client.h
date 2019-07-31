@@ -36,7 +36,11 @@ typedef struct sstp_peer
     char name[255];
 
     /*! The address information of our peer */
-    struct sockaddr addr;
+    union {
+        struct sockaddr addr;
+        struct sockaddr_in addr4;
+        struct sockaddr_in6 addr6;
+    };
 
     /*! The address length */
     int alen;

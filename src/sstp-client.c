@@ -635,7 +635,7 @@ static status_t sstp_client_lookup(sstp_url_st *uri, sstp_peer_st *peer)
 
     /* Save the results for later */
     strncpy(peer->name, (list->ai_canonname) ? : uri->host, sizeof(peer->name));
-    memcpy(&peer->addr, list->ai_addr, sizeof(peer->addr));
+    memcpy(&peer->addr, list->ai_addr, list->ai_addrlen);
     peer->alen = list->ai_addrlen;
 
     log_info("Resolved %s to %s", peer->name, 
