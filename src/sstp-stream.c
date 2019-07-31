@@ -939,7 +939,7 @@ status_t sstp_stream_connect(sstp_stream_st *stream, struct sockaddr *addr,
     int ret = (-1);
 
     /* Create the socket */
-    stream->ssock = socket(PF_INET, SOCK_STREAM, 0);
+    stream->ssock = socket(addr->sa_family, SOCK_STREAM, 0);
     if (0 > stream->ssock)
     {          
         log_err("Could not create socket");
