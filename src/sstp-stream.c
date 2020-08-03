@@ -1030,11 +1030,14 @@ status_t sstp_stream_destroy(sstp_stream_st *stream)
     }
 
     /* Shutdown the server */
-    SSL_shutdown(stream->ssl);
+    if (stream->ssl)
+    {
+        SSL_shutdown(stream->ssl);
 
-    /* Free resources */
-    SSL_free(stream->ssl);
-    stream->ssl = NULL;
+        /* Free resources */
+        SSL_free(stream->ssl);
+        stream->ssl = NULL;
+    }
 
     if (stream->ssock)
         close(stream->ssock);
