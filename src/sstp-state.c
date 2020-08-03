@@ -679,6 +679,11 @@ status_t sstp_state_mppe_keys(sstp_state_st *ctx, unsigned char *skey,
 {
     status_t status = SSTP_FAIL;
 
+    if (ctx == NULL)
+    {
+        goto done;
+    }
+
     /* Check the length */
     if ((slen != sizeof(ctx->mppe_send_key)) ||
         (rlen != sizeof(ctx->mppe_recv_key)))

@@ -116,7 +116,11 @@ static void sstp_client_event_cb(sstp_client_st *client, int ret)
     }
 
     /* Set the MPPE keys */
-    sstp_state_mppe_keys(client->state, skey, slen, rkey, rlen);
+    ret = sstp_state_mppe_keys(client->state, skey, slen, rkey, rlen);
+    if (SSTP_OKAY != ret)
+    {
+        sstp_die("Failed to set the MPPE keys", -1);
+    }
 
     log_info("Got MPPE/HLAK keys");
 }
